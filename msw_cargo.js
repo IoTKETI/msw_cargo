@@ -57,23 +57,110 @@ catch(e) {
   config.lib = [];
 }
 
-// library 추가
-let add_lib = {};
+config.directory_name = 'lib_bz_cargo';
+const mlib_name = 'lib_bz_cargo';
+const mlib_repository_url = 'https://github.com/IoTKETI/lib_bz_cargo';
+
 try {
-  add_lib = JSON.parse(fs.readFileSync('./' + config.directory_name + '/' + lib_bz_cargo + '.json', 'utf8'));
-  config.lib.push(add_lib);
+  if(fs.existsSync('./' + config.directory_name)) {
+    setTimeout(git_pull, 10, mlib_name, config.directory_name);
+  }
+  else {
+    setTimeout(git_clone, 10, mlib_name, config.directory_name, mlib_repository_url);
+  }
 }
 catch (e) {
-  add_lib = {
-    name: 'lib_devtool_test',
-    target: 'armv6',
-    description: "[name] [portnum] [baudrate]",
-    scripts: './lib_devtool_test /dev/ttyUSB4 115200',
-    data: ['Test'],
-    control: ['Control_Test']
-  };
-  config.lib.push(add_lib);
+  console.log(e.message);
 }
+
+function git_clone(mlib_name, directory_name, repository_url) {
+  try {
+    require('fs-extra').removeSync('./' + directory_name);
+  }
+  catch (e) {
+    console.log(e.message);
+  }
+
+  var gitClone = spawn('git', ['clone', repository_url, directory_name]);
+
+  gitClone.stdout.on('data', function(data) {
+    console.log('stdout: ' + data);
+  });
+
+  gitClone.stderr.on('data', function(data) {
+    console.log('stderr: ' + data);
+  });
+
+  gitClone.on('exit', function(code) {
+    console.log('exit: ' + code);
+
+    setTimeout(requireMLib, 5000);
+  });
+
+  gitClone.on('error', function(code) {
+    console.log('error: ' + code);
+  });
+}
+
+function git_pull(mlib_name, directory_name) {
+  try {
+    if (process.platform === 'win32') {
+      var cmd = 'git'
+    }
+    else {
+      cmd = 'git'
+    }
+
+    var gitPull = spawn(cmd, ['pull'], { cwd: process.cwd() + '/' + directory_name });
+
+    gitPull.stdout.on('data', function(data) {
+      console.log('stdout: ' + data);
+    });
+
+    gitPull.stderr.on('data', function(data) {
+      console.log('stderr: ' + data);
+    });
+
+    gitPull.on('exit', function(code) {
+      console.log('exit: ' + code);
+
+      setTimeout(requireMLib, 1000);
+    });
+
+    gitPull.on('error', function(code) {
+      console.log('error: ' + code);
+    });
+  }
+  catch (e) {
+    console.log(e.message);
+  }
+}
+
+function requireMLib() {
+  addLib();
+  init();
+}
+
+// library 추가
+function addLib() {
+  let add_lib = {};
+  try {
+    add_lib = JSON.parse(fs.readFileSync('./' + config.directory_name + '/lib_bz_cargo.json', 'utf8'));
+    config.lib.push(add_lib);
+  }
+  catch (e) {
+    add_lib = {
+      name: 'lib_devtool_test',
+      target: 'armv6',
+      description: "[name] [portnum] [baudrate]",
+      scripts: './lib_devtool_test /dev/ttyUSB4 115200',
+      data: ['Test'],
+      control: ['Control_Test']
+    };
+    config.lib.push(add_lib);
+  }
+}
+
 function init() {
   if(config.lib.length > 0) {
     for(let idx in config.lib) {
@@ -281,6 +368,16 @@ function parseControlMission(topic, str_message) {
 }
 
 function parseFcData(topic, str_message) {
+  let topic_arr = topic.split('/');
+  if(topic_arr[topic_arr.length-1] === 'system_time') {
+    let _topic = '/MUV/control/' + config.lib[0].name + '/' + config.lib[0].control[0]; // 'system_time'
+    msw_mqtt_client.publish(_topic, str_message);
+  }
+  else if (topic_arr[topic_arr.length-1] === 'timesync') {
+    let _topic = '/MUV/control/' + config.lib[0].name + '/' + config.lib[0].control[1]; // 'timesync'
+  }
+  else {
+  }
 
 
 }
